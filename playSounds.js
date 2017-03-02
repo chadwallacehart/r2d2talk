@@ -2,13 +2,17 @@
  * Use afplay to play sounds
  * Created by chad on 2/19/17.
  */
+
+//todo: turn this into a writeable stream
+//todo: on/off controls
+
 const spawn = require('child_process').spawn;
+
+let isPlaying = false;
+
 let playlist = [];
 
-
-function playSounds(sounds){
-    let child;
-
+function add(sounds){
     //check if it is an array
     if( Object.prototype.toString.call( sounds ) === '[object Array]' ) {
         sounds.forEach( (sound) => playlist.push(sound));
@@ -16,27 +20,38 @@ function playSounds(sounds){
     else
         playlist.push(sounds);
 
+    if (isPlaying == false) {
+        playSounds();
+    }
+}
+
+function playSounds(){
+    let child;
+
+    isPlaying = true;
+
     function playone(s){
         if (!s) {
-            console.log("audio complete")
+            isPlaying = false;
+            console.log("audio complete");
         }
         else if ( Number.isInteger(s) ){
-            setTimeout(function(){
-                console.log("pausing...");
-                playone( playlist.shift() );  //playone( sounds.shift() );
+            console.log("pausing...");
+            setTimeout(() => {
+                playSounds();
             }, s)
         }
         else{
             child = spawn("afplay", [s]);
-            child.on('exit', function (code, signal){
-                console.log("playing " + s);
-                playone( playlist.shift() );  //playone( sounds.shift() );
+            console.log("playing " + s);
+            child.on('exit', (code, signal) => {
+                playSounds();
             });
         }
     }
 
-    playone(playlist.shift());              //playone( sounds.shift() );
+    playone(playlist.shift());
 
 }
 
-module.exports = playSounds;
+module.exports = add;

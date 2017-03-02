@@ -5,14 +5,16 @@ const db = new Nedb({filename: 'r2d2db.txt', autoload: true});
 
 const soundDir = "./audio/";
 
-function playAll(){
-    db.find({},  (err, docs) => {
+let input = "Hello World. I am n4r8";
+
+function mapSound(searchWord){
+    db.find({word: searchWord},  (err, docs) => {
         if (err)
             console.log("database error; " + err);
 
         docCount = docs.length;
 
-        console.log(docCount + " documents loaded from database");
+        //console.log(docCount + " documents loaded from database");
 
         docs.forEach((doc) => {
             player((JSON.parse(doc.soundNum)
@@ -35,11 +37,30 @@ let playList2 = [
 ];
 
 let playLists = [];
-playLists.push(playList1);
-playLists.push(5);
-playLists.push(playList2);
+
+console.log(input.match(/\w+/gi));
+
+function parseInput(input){
+    let output = [];
+
+    input.match(/\w+/gi).forEach((word) => {
+        console.log("saying " + word);
+        mapSound(word.toLowerCase());
+        player(100);
+    });
+
+    console.log(output);
+
+}
 
 
-//playLists.forEach( (sounds) => player(sounds));
-
+parseInput(input);
+/*
 player(playList1);
+player(1500);
+player(playList2);
+setTimeout(()=>{
+    player(playList2);
+    player(playList1);
+}, 5000);
+*/
