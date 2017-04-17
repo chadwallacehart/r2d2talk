@@ -7,7 +7,7 @@ const Nedb = require("nedb");                                 //simple text data
 const db = new Nedb({filename: 'r2d2db.txt', autoload: true});
 
 db.ensureIndex({fieldName: 'soundNum', unique: true, sparse: true}, (err) => {
-    if(err != null)
+    if (err != null)
         console.log("soundNum index error: " + err);
 });
 
@@ -29,9 +29,9 @@ const phonemes = 80;    //ToDo: count files in the audio dir to compute this
 
 //ToDo: add these functions to a separate module, CLI options, add load and reset DB options
 
-function randNum() {
+function randNum(cb) {
     //ToDo: make this so it works with any number of syllables
-    //ToDo: add callbacks
+    //ToDo: add callbacks and/or promises
 
     let res = [];
     const maxsize = Math.pow(phonemes, 3) + Math.pow(phonemes, 2) + phonemes;
@@ -43,23 +43,27 @@ function randNum() {
             Math.floor((Math.random() * phonemes) + 1),
             Math.floor((Math.random() * phonemes) + 1)
         ];
-    else if (docCount < maxsize )
+    else if (docCount < maxsize)
         res = [
             Math.floor((Math.random() * phonemes) + 1),
             Math.floor((Math.random() * phonemes) + 1),
             Math.floor((Math.random() * phonemes) + 1)
         ];
-    else if (docCount >= maxsize){
+    else if (docCount >= maxsize) {
         let err = "Error: dictionary exceeded " + maxsize;
         console.error(err);
         return null;
     }
-    else{
+    else {
         console.error("randNum error");
         return null;
     }
 
-    return res;
+    //ToDo: test this callback
+    if (cb)
+        return (cb(res));
+    else
+        return res;
 }
 
 function insert(word, callback) {
@@ -74,7 +78,7 @@ function insert(word, callback) {
     }
 
     function insertWord(n, cb) {
-        if(!n)
+        if (!n)
             return;
 
         db.insert({word: word, soundNum: JSON.stringify(n)}, (err, doc) => {
@@ -99,83 +103,92 @@ function insert(word, callback) {
         (uniq) => insertWord(uniq, (d) => callback(d)));
 }
 
-function mapSound(searchWord, callback){
+function mapSound(searchWord, callback) {
     let sounds = [];
-    db.findOne({word: searchWord},  (err, doc) => {
+    db.findOne({word: searchWord}, (err, doc) => {
         if (err)
             console.log("database error; " + err);
 
-        if (doc){
-            JSON.parse(doc.soundNum).forEach( (s) => {
-                sounds.push( soundDir + s + ".mp3");
+        if (doc) {
+            JSON.parse(doc.soundNum).forEach((s) => {
+                sounds.push(soundDir + s + ".mp3");
             });
             callback(sounds);
         }
-        else{
+        else {
             insert(searchWord, (doc) => //console.log(doc)
-                JSON.parse(doc.soundNum).forEach( (s) => {
-                    sounds.push( soundDir + s + ".mp3");
-                    if(sounds.length == JSON.parse(doc.soundNum).length)
+                JSON.parse(doc.soundNum).forEach((s) => {
+                    sounds.push(soundDir + s + ".mp3");
+                    if (sounds.length == JSON.parse(doc.soundNum).length)
                         callback(sounds);
                 }));
         }
     });
 }
 
+//ToDo: use promises
 function loadDb(cb) {
-    db.find({},  (err, docs) => {
-        if (err)
-            console.log("database error; " + err);
+    //callback version
+    if (cb) {
+        db.find({}, (err, docs) => {
+            if (err)
+                console.log("database error; " + err);
 
-        docCount = docs.length;
+            docCount = docs.length;
 
-        console.log("words in db: " + JSON.stringify(docCount));
-        cb();
-    })
+            console.log("words in db: " + JSON.stringify(docCount));
+            cb();
+        })
+    }
+    //promise version
+    else
+        return new Promise((resolve, reject) => {
+            db.find({}, (err, docs) => {
+                if (err){
+                    console.log("database error; " + err);
+                    reject(err);
+                }
+
+                docCount = docs.length;
+
+                console.log("words in db: " + JSON.stringify(docCount));
+                resolve();
+            })
+        });
 }
 
-let playList1 = [
-  soundDir + 1 + ".mp3",
-    soundDir + 2 + ".mp3",
-    soundDir + 3 + ".mp3",
-];
 
-let playList2 = [
-    soundDir + 4 + ".mp3",
-    soundDir + 5 + ".mp3",
-    soundDir + 6 + ".mp3",
-];
+//strip punctuation and seperate the input into words
+function parseInput(input) {
+    let cnt = 0;
+    let words = [];
+    let currentWord;
 
-let playLists = [];
+    input.match(/\w+/gi).forEach((w) => words.push(w));
 
-//console.log(input.match(/\w+/gi));
+    let numWords = words.length;
 
-function parseInput(input){
+    function playWords() {
+        currentWord = words.shift().toLowerCase();
+        mapSound(currentWord, (sounds) => {
+            console.log("playing " + currentWord + " : " + sounds);
 
-    //Todo: make this forEach act sequential
-    input.match(/\w+/gi).forEach((word) => {
-        mapSound(word.toLowerCase(), (sounds)=> {
-            console.log(word + " : " + sounds);
-            //player(sounds);
-            //player(100)
+            player(sounds);
+            player(50);
+
+            cnt++;
+            if (cnt < numWords)
+                playWords();
         });
-    });
+    }
 
-//    function play(word, callback)
-
+    playWords();
 }
 
 let input = "Hello World. I am n5r8";
 
-loadDb(
-    ()=>parseInput(input));
+loadDb()
+    .then(()=>parseInput(input));
 
-/*
-player(playList1);
-player(1500);
-player(playList2);
-setTimeout(()=>{
-    player(playList2);
-    player(playList1);
-}, 5000);
-*/
+
+module.exports = parseInput;

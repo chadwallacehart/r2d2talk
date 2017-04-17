@@ -8,10 +8,13 @@ const Nedb = require("nedb"),                                   //simple text da
 
 const db = new Nedb({filename: 'r2d2db.txt', autoload: true});
 
- db.ensureIndex({fieldName: 'soundNum', unique: true, sparse: true}, (err) => {
- if(err != null)
- console.log("soundNum index error: " + err);
- });
+//Enforce unique indexes on soundNum and words;
+// nedb doesn't allow indexing on arrays, so soundNum converted to a string
+
+db.ensureIndex({fieldName: 'soundNum', unique: true, sparse: true}, (err) => {
+    if (err != null)
+        console.log("soundNum index error: " + err);
+});
 
 db.ensureIndex({fieldName: 'word', unique: true, sparse: true}, (err) => {
     if (err != null)
@@ -21,12 +24,7 @@ db.ensureIndex({fieldName: 'word', unique: true, sparse: true}, (err) => {
 let docCount = 0;
 const phonemes = 80;
 
-//const soundDir = "./audio/";
-let playList = [];
-/*    ,
-    words = [],
-    soundNums = [];*/
-
+//first check to see if the object is in the DB and return that object
 function checkDb(obj, cb) {
 
     db.findOne(obj, (err, doc) => {
@@ -39,18 +37,14 @@ function checkDb(obj, cb) {
     });
 }
 
+//get the databse document count
 function loadDb(cb) {
-    db.find({},  (err, docs) => {
+    db.find({}, (err, docs) => {
         if (err)
             console.log("database error; " + err);
 
         docCount = docs.length;
 
-/*        docs.forEach( (doc) => {
-            words.push(doc.word);
-            soundNums.push(doc.soundNum);
-        });
-*/
         console.log("words in db: " + JSON.stringify(docCount));
 
         console.log(docCount + " documents loaded from database");
@@ -58,6 +52,7 @@ function loadDb(cb) {
     })
 }
 
+//makes a new unused, random soundref array
 function randNum() {
     //ToDo: make this so it works with any number of syllables
     //ToDo: add callbacks
@@ -72,55 +67,45 @@ function randNum() {
             Math.floor((Math.random() * phonemes) + 1),
             Math.floor((Math.random() * phonemes) + 1)
         ];
-    else if (docCount < maxsize )
+    else if (docCount < maxsize)
         res = [
             Math.floor((Math.random() * phonemes) + 1),
             Math.floor((Math.random() * phonemes) + 1),
             Math.floor((Math.random() * phonemes) + 1)
         ];
-    else if (docCount >= maxsize){
+    else if (docCount >= maxsize) {
         let err = "Error: dictionary exceeded " + maxsize;
         console.error(err);
         return null;
     }
-    else{
+    else {
         console.error("randNum error");
         return null;
     }
 
-    //console.log(res);
-    //cb(res);
     return res;
 }
 
+//Add a new word to the DB
 function insert(word, callback) {
 
-/*    function valueInArray(value, array) {
-        return array.indexOf(value) > -1;
-    }
-*/
     function getUniqueNum(cb) {
         let rand = randNum();
-/*        if (valueInArray(rand, soundNums)) {
-            console.log(rand + " in array");
-            looper();
-        }*/
 
         if (rand == null)
             return null;
 
-        //soundNums.push(rand);   //reserve this
-        //console.log(rand + " is unique");
         return cb(rand);
     }
 
     function insertWord(n, cb) {
-        if(!n)
+        if (!n)
             return;
 
         db.insert({word: word, soundNum: JSON.stringify(n)}, (err, doc) => {
             if (err) {
-                // error object not much help: err.errorType == "uniqueViolated"  but doesn't tell you the index
+                // error object not much help: err.errorType == "uniqueViolated"
+                // but doesn't tell you the index, so just try a new soundref
                 if (err.errorType == "uniqueViolated") {
                     insert(word, callback);
                 }
@@ -128,7 +113,6 @@ function insert(word, callback) {
                     console.log("database insert error; " + err);
             }
             else {
-                //words.push(word);
                 docCount++;
                 console.log("docCount: " + docCount);
                 cb(doc);
@@ -140,6 +124,7 @@ function insert(word, callback) {
         (uniq) => insertWord(uniq, (d) => callback(d)));
 }
 
+//Adds many words and then returns a callback
 function insertMany(words, callback) {
 
     let itemsProcessed = 0;
@@ -156,11 +141,6 @@ function insertMany(words, callback) {
     });
 }
 
-//loadDb(() => insert("six", (obj) => console.log(obj)));
-let testLoad = [];
-for (x=1; x<=45; x++){
-    testLoad.push(x);
-}
-//console.log(JSON.stringify(testLoad));
-
 loadDb(() => insertMany(preload, (obj) => console.log(obj)));
+
+module.exports = loadDb;

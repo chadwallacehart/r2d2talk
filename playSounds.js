@@ -8,6 +8,9 @@
 
 const spawn = require('child_process').spawn;
 
+//ToDo: add a speed parameter to function call
+const speed = 1.5;
+
 let isPlaying = false;
 
 let playlist = [];
@@ -30,20 +33,21 @@ function playSounds(){
 
     isPlaying = true;
 
-    function playone(s){
-        if (!s) {
+    function playone(snd){
+        if (!snd) {
             isPlaying = false;
             console.log("audio complete");
         }
-        else if ( Number.isInteger(s) ){
+        else if ( Number.isInteger(snd) ){
             console.log("pausing...");
             setTimeout(() => {
                 playSounds();
-            }, s)
+            }, snd)
         }
         else{
-            child = spawn("afplay", [s]);
-            console.log("playing " + s);
+            child = spawn("afplay", [snd, '--rate', speed] );
+
+            console.log("playing " + snd);
             child.on('exit', (code, signal) => {
                 playSounds();
             });
